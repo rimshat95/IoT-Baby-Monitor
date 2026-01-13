@@ -3,24 +3,17 @@
 #include <PubSubClient.h>     // För MQTT-protokollet
 
 // ---- WIFI-UPPGIFTER ----
-// Fyll i ditt WiFi SSID och lösenord här
 const char* ssid = "Tele2_60e6e0";
 const char* password = "5vsxkf5u";
 
 // ---- AWS IOT CORE-UPPGIFTER ----
-// Dessa får du från AWS IoT Core konsolen
 const char* aws_mqtt_server = "a29cq3ntks7d7c-ats.iot.eu-north-1.amazonaws.com";
 const int aws_mqtt_port = 8883; // MQTTS standardport
 
 // Ditt unika Client ID för denna ESP32-enhet
-// Kan vara vad som helst, men måste vara unikt per enhet. T.ex. "esp32-baby-monitor-01"
 const char* mqtt_client_id = "esp32-baby-monitor-01";
 
 // AWS IoT Core X.509 Certifikat och Privata Nyckel (från din AWS IoT-enhet)
-// Dessa är unika för varje enhet och måste vara korrekt formaterade.
-// -----BEGIN CERTIFICATE-----
-// ... ditt enhetscertifikat här ...
-// -----END CERTIFICATE-----
 const char* certificate_pem_crt = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIDWTCCAkGgAwIBAgIUa4X6Z2puC34D0fv2EdzRaGSV73IwDQYJKoZIhvcNAQEL\n" \
@@ -44,9 +37,7 @@ const char* certificate_pem_crt = \
 "-----END CERTIFICATE-----\n";
 
 
-// -----BEGIN RSA PRIVATE KEY-----
-// ... din privata nyckel här ...
-// -----END RSA PRIVATE KEY-----
+//  RSA PRIVATE KEY
 const char* private_pem_key = \
 "-----BEGIN RSA PRIVATE KEY-----\n" \
 "MIIEpAIBAAKCAQEA7oPj+DQBaklPwfhIGb2rKLBfLFbfEAbOcZEL69y6Ft8Xjtvs\n" \
@@ -76,9 +67,6 @@ const char* private_pem_key = \
 "u7B3eD1vzIxZ2+i9ds/wIwQCOLsIxmg3hOXeBMzK5Nd8OdR+aZod7Q==\n" \
 "-----END RSA PRIVATE KEY-----\n";
 
-
-// AWS IoT Core Root CA-certifikat (från AWS, vanligtvis Amazon Root CA 1)
-// Denna är inte unik per enhet, utan för AWS IoT Core-regionen
 const char* aws_root_ca = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF\n" \
