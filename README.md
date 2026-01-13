@@ -48,6 +48,46 @@ ECHO    → GPIO 12
 ## 🏗️ Systemarkitektur
 <img width="1920" height="1080" alt="system-arkitektur" src="https://github.com/user-attachments/assets/b2279a1d-16a3-4029-b9a2-ce43baadea84" />
 
+Skalbarhet:
+
+Systemets skalbara design:
+
+Systemet är arkitekterat med AWS-tjänster (Managed Services) som naturligt skalar från en enskild enhet till tusentals, utan krav på ombyggnation av infrastrukturen.
+
+Horisontell skalning (Fler enheter):
+
+•	Implementation: Varje ny ESP32 tilldelas ett unikt deviceId och ett eget X.509-certifikat.
+•	Datalagring: DynamoDB använder deviceId som sort key, vilket möjliggör snabba sökningar även när datamängden växer för hundratals olika rum.
+•	Kapacitet: AWS IoT Core hanterar miljontals samtidiga MQTT-anslutningar automatiskt.
+
+Vertikal skalning (Fler funktioner):
+
+Systemet är förberett för att hantera utökad sensor-data (t.ex. temperatur, luftfuktighet eller ljudnivå) genom att enkelt expandera JSON-payloaden:
+
+{
+  "deviceId": "esp32-01",
+  "distance": 92,
+  "temp": 22.5,
+  "humidity": 45,
+  "sound_level": "low"
+} 
+
+Framtida arkitektur för produktion:
+
+För att gå från en simulation till en fullskalig konsumentprodukt krävs följande steg:
+
+1.	API Gateway: Implementera ett REST API mellan DynamoDB och Dashboarden för att hämta live-data på ett säkert och kontrollerat sätt.
+2.	AWS SNS: Ersätta enkla webhooks med Simple Notification Service för att kunna skicka larm via både SMS, E-post och Push-notiser samtidigt.
+3.	Cognito: Lägga till användarautentisering så att föräldrar endast kan se data från sina egna specifika enheter.
+
+Skalbarhetsmått:
+Resurs:	      Nuvarande:	Skalbart till:
+Enheter:	        1 st	     1 000+ st
+Meddelanden: ~17 000 / dag	  17M+ / dag
+Användare:	     1 st	     Obegränsat via Amplify CDN
+
+Slutsats: Genom att använda en serverlös (Serverless) arkitektur minimeras både kostnad och administrativt arbete vid tillväxt, då AWS sköter all resursallokering automatiskt.
+
 
 ## ☁️ AWS-tjänster som används
 
@@ -109,161 +149,76 @@ ECHO    → GPIO 12
   "timestamp": "1768184513277",
   "deviceId": "esp32-baby-monitor-01"
 }
- Kodstruktur
+ Kodstruktur:
+
 ESP32 Arduino-kod (baby_monitor.ino)
-WiFi-anslutningshantering
-NTP-tidssynkronisering
-HC-SR04-sensoravläsning
-MQTTS-klient med certifikat
-JSON-payload-skapande
-Felhantering och filtrering
+- WiFi-anslutningshantering och NTP-tidssynkronisering.
+- HC-SR04-sensoravläsning och MQTTS-klient med certifikat.
+- JSON-payload-skapande samt felhantering och filtrering.
+
 Lambda-funktion (lambda_function.py)
-Händelseparsning från IoT Rule
-Discord webhook-integration
-Statusfiltrering (endast "tom" utlöser notifikation)
-Felhantering och loggning
+  - Händelseparsning från IoT Rule och Discord webhook-integration.
+  - Statusfiltrering (endast "empty" utlöser notifikation) samt felhantering.
+
 Webbdashboard (index.html)
-Responsiv design
-Realtidsdatavisning
-Statusindikatorer med färgkodning
-Tabell med senaste avläsningar
-Auto-uppdateringsfunktionalitet
-🚀 Installationsinstruktioner
-Förutsättningar
-AWS-konto
-Arduino IDE med ESP32-boardstöd
-GitHub-konto
-Discord-server med webhook
-Steg 1: Hårdvaruinstallation
-Anslut HC-SR04 till ESP32 enligt hårdvaruanslutningar
-Anslut ESP32 till dator via USB
-Steg 2: AWS IoT Core-installation
-Skapa en Thing i AWS IoT Core
-Generera och ladda ner certifikat:
-Enhetscertifikat (.pem.crt)
-Privat nyckel (.pem.key)
-Amazon Root CA 1
-Skapa och bifoga en IoT Policy med behörigheter:
-iot:Connect
-iot:Publish
-iot:Subscribe
-Notera din AWS IoT Endpoint
-Steg 3: ESP32-kodkonfiguration
-Installera nödvändiga bibliotek i Arduino IDE:
-WiFi.h (inbyggd)
-WiFiClientSecure.h (inbyggd)
-PubSubClient (av Nick O'Leary)
-Uppdatera kod med:
-WiFi-uppgifter
-AWS IoT Endpoint
-Certifikatinnehåll (korrekt formaterat)
-Ladda upp kod till ESP32
-Steg 4: DynamoDB-installation
-Skapa DynamoDB-tabell: BabyMonitorData
-Partition key: timestamp (String)
-Sort key: deviceId (String)
+  - Responsiv design med realtidsdatavisning.
+  - Statusindikatorer med färgkodning och auto-uppdateringsfunktionalitet.
+
+ Installationsinstruktioner:
+
+Förutsättningar:
+
+- AWS-konto och GitHub-konto.
+- Arduino IDE med ESP32-boardstöd.
+- Discord-server med webhook
+
+Steg 1: Hårdvaruinstallation:
+- Anslut HC-SR04 till ESP32 (VCC->5V, GND->GND, TRIG->GPIO 13, ECHO->GPIO 12).
+- Anslut ESP32 till dator via USB.
+
+Steg 2: AWS IoT Core-installation:
+- Skapa en "Thing" och ladda ner certifikat (Device cert, Private key, Amazon Root CA 1).
+- Skapa och bifoga en IoT Policy (iot:Connect, iot:Publish, iot:Subscribe).
+
+Steg 3: ESP32-kodkonfiguration:
+- Installera biblioteken WiFiClientSecure och PubSubClient.
+- Uppdatera koden med WiFi-uppgifter, AWS Endpoint och certifikat.
+
+Steg 4: DynamoDB-installation:
+- Skapa tabellen BabyMonitorData med Partition key timestamp (String) och Sort key deviceId (String).
 
 Steg 5: IoT Rules-installation:
-  Regel 1: Spara till DynamoDB:
-  SELECT * FROM 'baby_monitor/bed_status'
-  Åtgärd: Infoga i DynamoDB-tabell
+- Regel 1 (DynamoDB): SELECT * FROM 'baby_monitor/bed_status'.
+- Regel 2 (Lambda): SELECT *, clientId() as deviceId, timestamp() as timestamp FROM 'baby_monitor/bed_status' WHERE bed_status = 'empty'.
 
-  Regel 2: Utlös Lambda:
-  SELECT *, clientId() as deviceId, timestamp() as timestamp 
-  FROM 'baby_monitor/bed_status' 
-  WHERE bed_status = 'empty'
-  Åtgärd: Anropa Lambda-funktion
+Steg 6: Lambda-funktion:
+- Skapa funktion med Python 3.10. Ladda upp deployment package med requests-biblioteket.
 
-Steg 6: Lambda-funktionsinstallation
-Skapa Lambda-funktion: BabyMonitorNotificationFunction
-Runtime: Python 3.10
-Lägg till Discord webhook-URL i koden
-Skapa deployment package med requests-bibliotek
-Ladda upp och distribuera
+Steg 7: Discord Webhook:
+- Skapa webhook i Discord och klistra in URL i Lambda-koden.
 
-Steg 7: Discord Webhook
-Skapa webhook i Discord-kanal
-Kopiera webhook-URL
-Lägg till i Lambda-funktion
+Steg 8: Amplify Dashboard:
+- Skapa Amplify-app och distribuera index.html manuellt via en ZIP-fil.
 
-Steg 8: Amplify Dashboard
-Skapa Amplify-app: BabyMonitorDashboard
-Distribuera index.html manuellt
-Få åtkomst via tillhandahållen URL
-
-Testning
-Test 1: Sensoravläsning
-Placera objekt på olika avstånd
-Verifiera att Serial Monitor visar korrekta avläsningar
-Bekräfta avståndskalkyleringsnoggrannhet
-
-Test 2: MQTT-kommunikation
-Kontrollera AWS IoT MQTT-testklient
-Verifiera att meddelanden publiceras var 5:e sekund
-Bekräfta JSON-payload-struktur
-
-Test 3: Datalagring
-Kontrollera DynamoDB-tabell
-Verifiera att alla fält är ifyllda
-Bekräfta timestamp-noggrannhet
-
-Test 4: Notifikationer
-Simulera "tom" säng (avstånd > 30 cm)
-Verifiera att Discord-notifikation visas
-Kontrollera Lambda CloudWatch-loggar
-
-Test 5: Dashboard
-Få åtkomst till Amplify-URL
-Verifiera att data visas korrekt
-Testa uppdateringsfunktionalitet
+ Testning:
+1. Sensoravläsning: Verifiera korrekta avstånd i Serial Monitor.
+2. MQTT: Kontrollera att meddelanden publiceras i AWS MQTT-testklient.
+3. Datalagring: Verifiera att data dyker upp i DynamoDB-tabellen.
+4. Notifikationer: Simulera "tom" säng och kontrollera Discord.
+5. Dashboard: Öppna Amplify-URL och verifiera att data visualiseras.
 
 Felsökning:
+- WiFi: Kontrollera att nätverket är 2.4GHz.
+- AWS IoT: Verifiera certifikatformatering och att NTP-tidssynk fungerar.
+- Discord: Kontrollera Lambda CloudWatch-loggar för SSL- eller importfel.
+- Dashboard: Kontrollera webbläsarkonsolen för JavaScript-fel.
 
-ESP32 ansluter inte till WiFi:
-  -Kontrollera WiFi-uppgifter
-  -Verifiera att WiFi-nätverket är 2.4GHz (ESP32 stöder inte 5GHz)
-  -Kontrollera Serial Monitor för felmeddelanden
-ESP32 ansluter inte till AWS IoT
-  -Verifiera att certifikat är korrekt formaterade
-  -Kontrollera AWS IoT Endpoint-URL
-  -Se till att NTP-tidssynkronisering fungerar
-  -Verifiera att IoT Policy är bifogad till certifikat
-Inga Discord-notifikationer
-  -Kontrollera Lambda CloudWatch-loggar för fel
-  -Verifiera att Discord webhook-URL är korrekt
-  -Se till att IoT Rule utlöser Lambda
-  -Bekräfta att bed_status är "empty" i meddelanden
-Dashboard visar inte data
-  -Kontrollera webbläsarkonsolen för JavaScript-fel
-  -Verifiera att Amplify-distributionen lyckades
-  -Se till att index.html är korrekt formaterad
+Framtida förbättringar:
+- Anslut dashboard till live DynamoDB-data via API Gateway.
+- Lägg till temperatur- och fuktighetssensorer.
+- Implementera maskininlärning för sömnmönsteranalys.
 
-📈 Framtida förbättringar
- Anslut dashboard till live DynamoDB-data via API Gateway
- Lägg till temperatur- och fuktighetssensorer
- Implementera kameraflöde för visuell övervakning
- Lägg till mobilapp för iOS/Android
- Skapa historisk dataanalys och trender
- Lägg till stöd för flera sensorer för olika rum
- Implementera maskininlärning för sömnmönsteranalys
- Lägg till röstvarningar via Alexa/Google Home
-
- Teknologier och färdigheter som demonstreras
-Inbyggda system: ESP32, Arduino, C++
-IoT-protokoll: MQTT, MQTTS, TLS/SSL
-Molntjänster: AWS IoT Core, Lambda, DynamoDB, Amplify
-Säkerhet: X.509-certifikat, IAM-roller, kryptering
-Programmering: C++ (Arduino), Python (Lambda), JavaScript (Dashboard)
-Webbutveckling: HTML, CSS, responsiv design
-DevOps: CI/CD med Amplify, serverlös arkitektur
-Databas: NoSQL (DynamoDB)
-API:er: REST, Discord webhooks
-Versionskontroll: Git, GitHub
-
-Rimsha
-
-Student - Mjukvaruutvecklare i IoT och inbyggda system
-
-Nackademin
-
-
+Teknologier:
+- Hårdvara: ESP32, C++, HC-SR04.
+- Cloud: AWS IoT Core, Lambda, DynamoDB, Amplify.
+- Protokoll: MQTT, MQTTS, TLS/SSL, HTTPS.
