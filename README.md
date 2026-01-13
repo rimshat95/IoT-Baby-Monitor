@@ -46,44 +46,8 @@ ECHO    → GPIO 12
 ---
 
 ## 🏗️ Systemarkitektur
+<img width="1920" height="1080" alt="system-arkitektur" src="https://github.com/user-attachments/assets/b2279a1d-16a3-4029-b9a2-ce43baadea84" />
 
-┌─────────────┐
-│   ESP32     │
-│  + HC-SR04  │
-└──────┬──────┘
-│ WiFi (MQTTS)
-│
-▼
-┌─────────────────┐
-│  AWS IoT Core   │
-└────┬────────┬───┘
-│        │
-│        ▼
-│   ┌──────────────┐
-│   │  AWS Lambda  │
-│   │  (Triggers)  │
-│   └──────┬───────┘
-│          │
-│          ▼
-│   ┌──────────────┐
-│   │   Discord    │
-│   │ (Webhook)    │
-│   └──────────────┘
-│
-▼
-┌──────────────┐
-│  DynamoDB    │
-│ (Datalagring)│
-└──────────────┘
-│
-▼
-┌──────────────┐
-│ AWS Amplify  │
-│ (Dashboard)  │
-└──────────────┘
-
-
----
 
 ## ☁️ AWS-tjänster som används
 
